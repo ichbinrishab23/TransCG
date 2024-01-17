@@ -4,6 +4,7 @@ import open3d as o3d
 from PIL import Image
 from inference import Inferencer
 
+import pyrealsense2 as rs
 
 def draw_point_cloud(color, depth, camera_intrinsics, use_mask = False, use_inpainting = True, scale = 1000.0, inpainting_radius = 5, fault_depth_limit = 0.2, epsilon = 0.01):
     """
@@ -43,27 +44,66 @@ def draw_point_cloud(color, depth, camera_intrinsics, use_mask = False, use_inpa
     return cloud
 
 
+def get_intrinsics():
+    # Configure depth and color streams
+    pipeline = rs.pipeline()
+    config = rs.config()
+
+    pipeline_wrapper = rs.pipeline_wrapper(pipeline)
+    pipeline_profile = config.resolve(pipeline_wrapper)
+    device = pipeline_profile.get_device()
+    print(device)
+
+    found_rgb = False
+    for s in device.sensors:
+        if s.get_info(rs.camera_info.name) == 'RGB Camera':
+            found_rgb = True
+            break
+    if not found_rgb:
+        print("The demo requires Depth camera with Color sensor")
+        exit(0)
+
+    config.enable_stream(rs.stream.depth, rs.format.z16, 30)
+    config.enable_stream(rs.stream.color, rs.format.bgr8, 30)
+
+    # Start streaming
+    pipeline.start(config)
+
+    # Get stream profile and camera intrinsics
+    profile = pipeline.get_active_profile()
+    depth_profile = rs.video_stream_profile(profile.get_stream(rs.stream.depth))
+    depth_intrinsics = depth_profile.get_intrinsics()
+
+    return depth_intrinsics
+
+cam_intrinsics = get_intrinsics()
+
+cam_intrinsics_np = np.array([[cam_intrinsics.fx, 0, cam_intrinsics.ppx],
+                             [0, cam_intrinsics.fy, cam_intrinsics.ppy],
+                             [0, 0, 1]], np.float32)
+
 inferencer = Inferencer()
 
-rgb = np.array(Image.open('data/scene21/1/rgb1.png'), dtype = np.float32)
-depth = np.array(Image.open('data/scene21/1/depth1.png'), dtype = np.float32)
-depth_gt = np.array(Image.open('data/scene21/1/depth1-gt.png'), dtype = np.float32)
+rgb = np.array(Image.open('data/d435i/10_239722074298.png'), dtype = np.float32)
+depth = np.load('data/d435i/10_239722074298.npy')
+# depth_gt = np.array(Image.open('data/scene21/1/depth1-gt.png'), dtype = np.float32)
 
 depth = depth / 1000
-depth_gt = depth_gt / 1000
+# depth_gt = depth_gt / 1000
+print(depth)
 
 res, depth = inferencer.inference(rgb, depth, depth_coefficient = 3, inpainting = True)
+print(res, depth)
 
-cam_intrinsics = np.load('data/camera_intrinsics/1-camIntrinsics-D435.npy')
+res = np.clip(res, 0.3, 5.0)
+depth = np.clip(depth, 0.3, 5.0)
 
-res = np.clip(res, 0.3, 1.0)
-depth = np.clip(depth, 0.3, 1.0)
-
-cloud = draw_point_cloud(rgb, res, cam_intrinsics, scale = 1.0)
-cloud_gt = draw_point_cloud(rgb, depth_gt, cam_intrinsics, scale = 1.0)
+cloud = draw_point_cloud(rgb, res, cam_intrinsics_np, scale = 1.0)
+cloud_ori = draw_point_cloud(rgb, depth, cam_intrinsics_np, scale = 1.0)
+# cloud_gt = draw_point_cloud(rgb, depth_gt, cam_intrinsics, scale = 1.0)
 
 frame = o3d.geometry.TriangleMesh.create_coordinate_frame(0.1)
 sphere = o3d.geometry.TriangleMesh.create_sphere(0.002,20).translate([0,0,0.490])
-o3d.visualization.draw_geometries([cloud, cloud_gt, frame, sphere])
-
-
+# o3d.visualization.draw_geometries([cloud, cloud_gt, frame, sphere])
+# o3d.visualization.draw_geometries([cloud, frame, sphere])
+# o3d.visualization.draw_geometries([cloud, frame, sphere])
