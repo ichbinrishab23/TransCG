@@ -9,7 +9,7 @@ import pyrealsense2 as rs
 
 def draw_point_cloud(rgb_np, depth_np, cam_intrinsics, complete_pcd=False):
     h, w, _ = rgb_np.shape
-    print(h,w)
+    # print(h,w)
     if(complete_pcd==True):
         inferencer = Inferencer()
         depth_np = depth_np / 1000
@@ -74,7 +74,7 @@ def main():
     print(f"Original depth: {depth_np}")
 
     draw_point_cloud(rgb_np, depth_np, cam_intrinsics)
-    # draw_point_cloud(rgb_np, depth_np, cam_intrinsics, complete_pcd=True)
+    draw_point_cloud(rgb_np, depth_np, cam_intrinsics, complete_pcd=True)
 
 if __name__ == '__main__':
     main()

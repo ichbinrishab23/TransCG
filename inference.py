@@ -102,6 +102,7 @@ class Inferencer(object):
         depth = np.where(depth > depth_mu + depth_coefficient * depth_std, 0, depth)
         if inpainting:
             mask = np.where(depth > 0)
+            print(mask)
             if mask[0].shape[0] != 0:
                 interp = NearestNDInterpolator(np.transpose(mask), depth[mask])
                 depth = interp(*np.indices(depth.shape))
