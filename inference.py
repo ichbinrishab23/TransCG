@@ -16,6 +16,7 @@ from utils.logger import ColoredLogger
 from utils.builder import ConfigBuilder
 from time import perf_counter
 from scipy.interpolate import NearestNDInterpolator
+from scipy.interpolate import griddata
 
 
 class Inferencer(object):
@@ -90,8 +91,8 @@ class Inferencer(object):
         The depth image after completion.
         """
         
-        rgb = cv2.resize(rgb, self.image_size, interpolation = cv2.INTER_NEAREST)
-        depth = cv2.resize(depth, self.image_size, interpolation = cv2.INTER_NEAREST)
+        rgb = cv2.resize(rgb, self.image_size, interpolation = cv2.INTER_LINEAR)
+        depth = cv2.resize(depth, self.image_size, interpolation = cv2.INTER_LINEAR)
         depth = np.where(depth < self.depth_min, 0, depth)
         depth = np.where(depth > self.depth_max, 0, depth)
         depth[np.isnan(depth)] = 0
@@ -100,12 +101,21 @@ class Inferencer(object):
         depth_std = depth_available.std() if depth_available.shape[0] != 0 else 1
         depth = np.where(depth < depth_mu - depth_coefficient * depth_std, 0, depth)
         depth = np.where(depth > depth_mu + depth_coefficient * depth_std, 0, depth)
+        # if inpainting:
+        #     mask = np.where(depth > 0)
+        #     print(mask)
+        #     if mask[0].shape[0] != 0:
+        #         interp = NearestNDInterpolator(np.transpose(mask), depth[mask])
+        #         depth = interp(*np.indices(depth.shape))
         if inpainting:
             mask = np.where(depth > 0)
-            print(mask)
             if mask[0].shape[0] != 0:
-                interp = NearestNDInterpolator(np.transpose(mask), depth[mask])
-                depth = interp(*np.indices(depth.shape))
+                points = np.transpose(mask)
+                values = depth[mask]
+                grid_x, grid_y = np.indices(depth.shape)
+                depth = griddata(points, values, (grid_x, grid_y), method='linear', fill_value=0)
+        # print(depth)
+
         depth = depth / self.depth_norm
         depth_min = depth.min() - 0.5 * depth.std() - 1e-6
         depth_max = depth.max() + 0.5 * depth.std() + 1e-6
@@ -125,7 +135,7 @@ class Inferencer(object):
         depth_ori = depth_ori * (depth_max - depth_min) + depth_min
         depth_res = depth_res * self.depth_norm
         depth_ori = depth_ori * self.depth_norm
-        depth_res = cv2.resize(depth_res, target_size, interpolation = cv2.INTER_NEAREST)
-        depth_ori = cv2.resize(depth_ori, target_size, interpolation = cv2.INTER_NEAREST)
+        depth_res = cv2.resize(depth_res, target_size, interpolation = cv2.INTER_LINEAR)
+        depth_ori = cv2.resize(depth_ori, target_size, interpolation = cv2.INTER_LINEAR)
         return depth_res, depth_ori
     

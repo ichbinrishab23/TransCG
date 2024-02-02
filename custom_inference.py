@@ -13,8 +13,8 @@ def draw_point_cloud(rgb_np, depth_np, cam_intrinsics, complete_pcd=False):
     if(complete_pcd==True):
         inferencer = Inferencer()
         depth_np = depth_np / 1000
-        depth_np, depth_ori = inferencer.inference(rgb_np, depth_np)
-        depth_np = depth_np*1000
+        depth_np, depth_ori = inferencer.inference(rgb_np, depth_np, depth_coefficient=3, inpainting=True)
+        # depth_np *= 1000 
         print(f"Sample inference depth: {depth_np}")
     img = o3d.geometry.Image(rgb_np.astype(np.uint8))
     depth = o3d.geometry.Image(depth_np)
@@ -71,9 +71,9 @@ def main():
 
     rgb_np = np.array(Image.open('data/d435i/10_239722074298.png'), dtype = np.float32)
     depth_np = np.load('data/d435i/10_239722074298.npy')
-    print(f"Original depth: {depth_np}")
+    print(f"Depth shape: {depth_np.shape}, Original depth: {depth_np}")
 
-    draw_point_cloud(rgb_np, depth_np, cam_intrinsics)
+    # draw_point_cloud(rgb_np, depth_np, cam_intrinsics)
     draw_point_cloud(rgb_np, depth_np, cam_intrinsics, complete_pcd=True)
 
 if __name__ == '__main__':

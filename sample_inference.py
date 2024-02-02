@@ -93,14 +93,17 @@ depth = depth / 1000
 print(depth)
 
 res, depth = inferencer.inference(rgb, depth, depth_coefficient = 3, inpainting = True)
-print(res, depth)
+print(res)
+res *= 1000
 
-res = np.clip(res, 0.3, 5.0)
+res = np.clip(res, 3000, 5000.0)
 depth = np.clip(depth, 0.3, 5.0)
 
-cloud = draw_point_cloud(rgb, res, cam_intrinsics_np, scale = 1.0)
+cloud = draw_point_cloud(rgb, res, cam_intrinsics_np, scale = 1000.0)
 # cloud_gt = draw_point_cloud(rgb, depth_gt, cam_intrinsics, scale = 1.0)
 
 frame = o3d.geometry.TriangleMesh.create_coordinate_frame(0.1)
 sphere = o3d.geometry.TriangleMesh.create_sphere(0.002,20).translate([0,0,0.490])
+
+cloud.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
 o3d.visualization.draw_geometries([cloud], window_name='Point Cloud')
